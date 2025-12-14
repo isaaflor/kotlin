@@ -1,12 +1,17 @@
 package com.example.calculadoradeimc.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.calculadoradeimc.data.BMIDao
 import com.example.calculadoradeimc.data.BMIRecord
 import com.example.calculadoradeimc.domain.CalculateBMIUseCase
 import com.example.calculadoradeimc.domain.HealthMetricsResult
+import com.example.calculadoradeimc.worker.BMIReminderWorker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,25 +20,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
-/**
- * UI State holding input data, calculated results, and validation errors.
- */
 data class BMIUiState(
     val height: String = "",
     val weight: String = "",
     val age: String = "",
     val isMale: Boolean = true,
     val activityFactor: Double = 1.2,
-
-    // Results
     val result: HealthMetricsResult? = null,
-
-    // Validation Errors (Null means valid)
     val heightError: String? = null,
     val weightError: String? = null,
     val ageError: String? = null,
-
     val globalError: String? = null
 )
 
@@ -62,9 +60,6 @@ class MainViewModel(private val dao: BMIDao) : ViewModel() {
     fun onGenderChange(isMale: Boolean) { _uiState.update { it.copy(isMale = isMale) } }
     fun onActivityChange(factor: Double) { _uiState.update { it.copy(activityFactor = factor) } }
 
-    /**
-     * Validates inputs and triggers calculation if valid.
-     */
     fun onCalculateClick() {
         if (validateInputs()) {
             val s = _uiState.value
@@ -85,29 +80,22 @@ class MainViewModel(private val dao: BMIDao) : ViewModel() {
         }
     }
 
-    /**
-     * Performs sanity checks on user inputs.
-     * Returns true if all inputs are valid.
-     */
     private fun validateInputs(): Boolean {
         var isValid = true
         val s = _uiState.value
 
-        // Height Validation (50cm - 300cm)
         val h = s.height.toIntOrNull()
         if (h == null || h !in 50..300) {
             _uiState.update { it.copy(heightError = "Entre 50 e 300 cm") }
             isValid = false
         }
 
-        // Weight Validation (2kg - 500kg)
         val w = s.weight.replace(",", ".").toDoubleOrNull()
         if (w == null || w !in 2.0..500.0) {
             _uiState.update { it.copy(weightError = "Entre 2 e 500 kg") }
             isValid = false
         }
 
-        // Age Validation (1 - 120 years)
         val a = s.age.toIntOrNull()
         if (a == null || a !in 1..120) {
             _uiState.update { it.copy(ageError = "Entre 1 e 120 anos") }
@@ -137,6 +125,20 @@ class MainViewModel(private val dao: BMIDao) : ViewModel() {
         return when(factor) {
             1.2 -> "Sedentário"; 1.375 -> "Leve"; 1.55 -> "Moderado"; 1.725 -> "Ativo"; else -> "Outro"
         }
+    }
+
+    // --- NEW: WorkManager Scheduler ---
+    fun scheduleWeeklyReminder(context: Context) {
+        val workRequest = PeriodicWorkRequestBuilder<BMIReminderWorker>(7, TimeUnit.DAYS)
+            .addTag("bmi_reminder")
+            .build()
+
+        // UPDATE policy replaces the schedule if it exists (resetting the timer)
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "BMI_Weekly_Reminder",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            workRequest
+        )
     }
 
     companion object {

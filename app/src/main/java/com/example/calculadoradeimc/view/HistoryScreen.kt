@@ -33,7 +33,6 @@ fun HistoryScreen(
     onBack: () -> Unit,
     onRecordClick: (Int) -> Unit
 ) {
-    // Collect the list of records from the ViewModel
     val historyList by viewModel.historyList.collectAsState()
 
     Scaffold(
@@ -63,17 +62,15 @@ fun HistoryScreen(
                 .background(Color.White)
         ) {
             if (historyList.isEmpty()) {
-                // Empty State
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Nenhum registro encontrado.", color = Color.Gray)
                 }
             } else {
-                // We use LazyColumn to make the whole screen scrollable
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // --- PART 1: THE CHART (Top of the list) ---
+                    // --- CHART SECTION ---
                     item {
                         BmiChart(records = historyList)
                         HorizontalDivider(
@@ -83,7 +80,7 @@ fun HistoryScreen(
                         )
                     }
 
-                    // --- PART 2: THE LIST HEADER ---
+                    // --- HEADER SECTION ---
                     item {
                         Text(
                             text = "Registros Recentes",
@@ -93,9 +90,8 @@ fun HistoryScreen(
                         )
                     }
 
-                    // --- PART 3: THE LIST ITEMS ---
+                    // --- LIST ITEMS ---
                     items(historyList) { record ->
-                        // We wrap the item in a Box to add horizontal padding matching the rest of the screen
                         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                             HistoryItem(record, onClick = { onRecordClick(record.id) })
                         }
@@ -106,14 +102,12 @@ fun HistoryScreen(
     }
 }
 
-// --- NEW COMPOSABLE: The Logic for the Line Chart ---
+// --- UPDATED CHART LOGIC ---
 @Composable
 fun BmiChart(records: List<BMIRecord>) {
-    // 1. Sort Data: We need Oldest -> Newest for a time chart
-    // 'remember' prevents re-sorting every time the screen redraws
+    // 1. Sort Data: Oldest -> Newest
     val sortedData = remember(records) { records.sortedBy { it.date } }
 
-    // If we don't have enough points to make a line, show a message
     if (sortedData.size < 2) {
         Box(
             modifier = Modifier
@@ -128,19 +122,19 @@ fun BmiChart(records: List<BMIRecord>) {
         return
     }
 
-    // 2. Find Min/Max values to calculate the scale
+    // 2. Calculate Scales (Min/Max)
     val minDate = sortedData.first().date
     val maxDate = sortedData.last().date
-    // Safety check: Prevent division by zero if dates are identical
     val timeSpan = (maxDate - minDate).coerceAtLeast(1)
 
-    val minBmi = sortedData.minOf { it.bmi }
-    val maxBmi = sortedData.maxOf { it.bmi }
+    val minDataBmi = sortedData.minOf { it.bmi }
+    val maxDataBmi = sortedData.maxOf { it.bmi }
 
-    // Add some "padding" to the Y-axis so points aren't exactly on the edge
-    // We also make sure the range covers 25.0 (the Overweight line) so we can draw it
-    val yMin = minOf(minBmi, 24.0) - 1.0
-    val yMax = maxOf(maxBmi, 26.0) + 1.0
+    // FORCE SCALE: Ensure the chart always covers the range [18.0 to 31.0]
+    // regardless of the user's data. This guarantees the reference lines
+    // (18.5 and 30.0) are always visible inside the canvas.
+    val yMin = minOf(minDataBmi, 18.0) - 1.0
+    val yMax = maxOf(maxDataBmi, 31.0) + 1.0
     val bmiRange = yMax - yMin
 
     Column(
@@ -151,55 +145,48 @@ fun BmiChart(records: List<BMIRecord>) {
         Text("Evolução do IMC", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Blue)
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- THE CANVAS: This is where we draw manually ---
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp) // Fixed height for the chart
-                .background(Color(0xFFF9F9F9), shape = MaterialTheme.shapes.medium)
+                .height(220.dp) // Slightly taller to accommodate wider range
+                .background(Color(0xFFFAFAFA), shape = MaterialTheme.shapes.medium)
         ) {
-            // 'size.width' and 'size.height' give us the pixel dimensions of this canvas
             val width = size.width
             val height = size.height
             val pointRadius = 4.dp.toPx()
 
             // --- MATH HELPER FUNCTIONS ---
-
-            /**
-             * Converts a Date timestamp into an X-axis pixel coordinate.
-             * Formula: (Date - StartDate) / TotalTimeDuration * CanvasWidth
-             */
             fun getX(date: Long): Float {
                 val fraction = (date - minDate).toFloat() / timeSpan.toFloat()
                 return fraction * width
             }
 
-            /**
-             * Converts a BMI value into a Y-axis pixel coordinate.
-             * IMPORTANT: In computer graphics, (0,0) is the TOP-LEFT corner.
-             * So, Higher values (Top) need Lower Y-pixel coordinates.
-             * Formula: CanvasHeight - ( (BMI - MinBMI) / TotalBMIRange * CanvasHeight )
-             */
             fun getY(bmi: Double): Float {
+                // Invert Y axis (0 is top)
                 val fraction = (bmi - yMin).toFloat() / bmiRange.toFloat()
                 return height - (fraction * height)
             }
 
-            // --- DRAWING STEP 1: The Reference Line (BMI 25.0) ---
-            val y25 = getY(25.0)
-            // Only draw if the line falls within our current chart view
-            if (y25 in 0f..height) {
-                drawLine(
-                    color = Color.Red.copy(alpha = 0.5f),
-                    start = Offset(0f, y25),
-                    end = Offset(width, y25),
-                    strokeWidth = 2.dp.toPx(),
-                    // This creates the "Dashed" effect
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 20f))
-                )
+            // --- DRAWING: REFERENCE LINES ---
+            // Helper to draw dashed lines
+            fun drawThreshold(value: Double, color: Color) {
+                val yPos = getY(value)
+                if (yPos in 0f..height) {
+                    drawLine(
+                        color = color.copy(alpha = 0.6f),
+                        start = Offset(0f, yPos),
+                        end = Offset(width, yPos),
+                        strokeWidth = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f))
+                    )
+                }
             }
 
-            // --- DRAWING STEP 2: The Lines and Points ---
+            drawThreshold(18.5, Color(0xFF2196F3)) // Blue: Underweight boundary
+            drawThreshold(25.0, Color(0xFFFF9800)) // Orange: Overweight boundary
+            drawThreshold(30.0, Color(0xFFF44336)) // Red: Obesity boundary
+
+            // --- DRAWING: DATA PATH ---
             val path = Path()
             var isFirstPoint = true
 
@@ -207,17 +194,33 @@ fun BmiChart(records: List<BMIRecord>) {
                 val x = getX(record.date)
                 val y = getY(record.bmi)
 
-                // Build the line path
                 if (isFirstPoint) {
                     path.moveTo(x, y)
                     isFirstPoint = false
                 } else {
                     path.lineTo(x, y)
                 }
+            }
 
-                // Draw the Dot
-                // We reuse your existing getBmiColor logic
-                val dotColor = if(record.bmi < 25) Color(0xFF4CAF50) else if(record.bmi < 30) Color(0xFFFF9800) else Color(0xFFF44336)
+            // Draw Blue Line connecting dots
+            drawPath(
+                path = path,
+                color = Color.Blue,
+                style = Stroke(width = 2.dp.toPx())
+            )
+
+            // --- DRAWING: DATA POINTS (With Color Logic) ---
+            sortedData.forEach { record ->
+                val x = getX(record.date)
+                val y = getY(record.bmi)
+
+                // STRICT COLOR LOGIC
+                val dotColor = when {
+                    record.bmi < 18.5 -> Color(0xFF2196F3) // Blue
+                    record.bmi < 25.0 -> Color(0xFF4CAF50) // Green
+                    record.bmi < 30.0 -> Color(0xFFFF9800) // Orange
+                    else -> Color(0xFFF44336)              // Red
+                }
 
                 drawCircle(
                     color = dotColor,
@@ -225,35 +228,42 @@ fun BmiChart(records: List<BMIRecord>) {
                     center = Offset(x, y)
                 )
             }
-
-            // Stroke the connected line
-            drawPath(
-                path = path,
-                color = Color.Blue,
-                style = Stroke(width = 2.dp.toPx())
-            )
         }
 
         // Legend
-        Text(
-            text = "Tracejado vermelho: Limite de Sobrepeso (25.0)",
-            fontSize = 10.sp,
-            color = Color.Gray,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            LegendItem(color = Color(0xFF2196F3), text = "18.5")
+            LegendItem(color = Color(0xFF4CAF50), text = "Normal")
+            LegendItem(color = Color(0xFFFF9800), text = "25.0")
+            LegendItem(color = Color(0xFFF44336), text = "30.0")
+        }
     }
 }
 
-// --- EXISTING LIST ITEM COMPOSABLE ---
+@Composable
+fun LegendItem(color: Color, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(8.dp).background(color, shape = androidx.compose.foundation.shape.CircleShape))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text, fontSize = 10.sp, color = Color.Gray)
+    }
+}
+
+// --- UPDATED LIST ITEM ---
 @Composable
 fun HistoryItem(record: BMIRecord, onClick: () -> Unit) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
-    // Logic for color (Copied from Home.kt for simplicity in this file)
-    val bmiColor = if(record.bmi < 18.5) Color(0xFF2196F3)
-    else if(record.bmi < 25.0) Color(0xFF4CAF50)
-    else if(record.bmi < 30.0) Color(0xFFFF9800)
-    else Color(0xFFF44336)
+    // Standard Color Logic
+    val bmiColor = when {
+        record.bmi < 18.5 -> Color(0xFF2196F3) // Blue
+        record.bmi < 25.0 -> Color(0xFF4CAF50) // Green
+        record.bmi < 30.0 -> Color(0xFFFF9800) // Orange
+        else -> Color(0xFFF44336)              // Red
+    }
 
     Card(
         elevation = CardDefaults.cardElevation(2.dp),

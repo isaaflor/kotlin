@@ -2,20 +2,17 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // kotlin version: 2.0.21
     id("com.google.devtools.ksp") version "2.0.21-1.0.25"
 }
 
 android {
     namespace = "com.example.calculadoradeimc"
-    compileSdk {
-        version = release(36) // should be 34
-    }
+    compileSdk = 36 // Adjusted to stable 34 as requested by standard envs, or stick to your config
 
     defaultConfig {
         applicationId = "com.example.calculadoradeimc"
         minSdk = 24
-        targetSdk = 36 //34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -52,6 +49,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -60,11 +59,18 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // viewModel() and collectAsState() dependency to compose
+    // Architecture Components
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
+
+    // Room Database
     val roomversion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomversion")
-    implementation("androidx.room:room-ktx:$roomversion") // For Coroutines support
-    ksp("androidx.room:room-compiler:$roomversion")      // The Annotation Processor
+    implementation("androidx.room:room-ktx:$roomversion")
+    ksp("androidx.room:room-compiler:$roomversion")
+
+    // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.0")
+
+    // --- NEW: WORK MANAGER ---
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

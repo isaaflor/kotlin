@@ -1,5 +1,11 @@
 package com.example.calculadoradeimc.view
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,16 +13,19 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.calculadoradeimc.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,7 +35,37 @@ fun Home(
     onHistoryClick: () -> Unit
 ) {
     val uiState by mainViewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
+
+    // --- PERMISSION LAUNCHER (Android 13+) ---
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            mainViewModel.scheduleWeeklyReminder(context)
+            Toast.makeText(context, "Lembrete semanal ativado!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Permissão necessária para lembretes.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Function to handle the Click logic
+    fun onEnableReminderClick() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Check if already granted
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                mainViewModel.scheduleWeeklyReminder(context)
+                Toast.makeText(context, "Lembrete agendado!", Toast.LENGTH_SHORT).show()
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            // Android 12 or below (No permission needed)
+            mainViewModel.scheduleWeeklyReminder(context)
+            Toast.makeText(context, "Lembrete semanal ativado!", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val activityOptions = listOf(
         "Sedentário" to 1.2,
@@ -40,6 +79,11 @@ fun Home(
             TopAppBar(
                 title = { Text(text = "Calculadora de Saúde") },
                 actions = {
+                    // NEW: Notification Button
+                    IconButton(onClick = { onEnableReminderClick() }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Ativar Lembrete", tint = Color.White)
+                    }
+                    // History Button
                     IconButton(onClick = onHistoryClick) {
                         Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Histórico", tint = Color.White)
                     }
@@ -103,7 +147,7 @@ fun Home(
                 }
             }
 
-            // --- Row 3: Activity Dropdown (With Warning Fix) ---
+            // --- Row 3: Activity Dropdown ---
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
@@ -114,7 +158,6 @@ fun Home(
                     readOnly = true,
                     label = { Text("Nível de Atividade") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    // FIX: Updated menuAnchor with correct parameters
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                         .fillMaxWidth()
