@@ -129,7 +129,7 @@ class MainViewModel(private val dao: BMIDao) : ViewModel() {
 
     // --- NEW: WorkManager Scheduler ---
     fun scheduleWeeklyReminder(context: Context) {
-        val workRequest = PeriodicWorkRequestBuilder<BMIReminderWorker>(7, TimeUnit.DAYS)
+        val workRequest = PeriodicWorkRequestBuilder<BMIReminderWorker>(7, TimeUnit.DAYS) //(15, TimeUnit.MINUTES)
             .addTag("bmi_reminder")
             .build()
 
