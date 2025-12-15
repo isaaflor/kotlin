@@ -24,6 +24,14 @@ class BMIReminderWorker(
         return Result.success()
     }
 
+    /** Gemini - início
+     * Prompt: Implement a Periodic Notification System to remind the user to log their weight.
+     * Requirements:
+     * 1. Use Android WorkManager API for reliable background scheduling (PeriodicWorkRequest).
+     * 2. Schedule the task to run once every 7 days (Weekly Reminder).
+     * 3. Handle Android 13+ runtime permissions (`POST_NOTIFICATIONS`) gracefully.
+     * 4. Keep logic simple: a single button in the UI to activate the reminder, which triggers a standard local notification.
+     */
     private fun triggerNotification() {
         val channelId = "bmi_reminder_channel"
         val channelName = "Lembrete Semanal IMC"
@@ -68,4 +76,5 @@ class BMIReminderWorker(
         // 4. Show it
         notificationManager.notify(notificationId, builder.build())
     }
+    /** Gemini - final */
 }

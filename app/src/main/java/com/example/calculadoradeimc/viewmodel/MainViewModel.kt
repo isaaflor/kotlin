@@ -127,7 +127,15 @@ class MainViewModel(private val dao: BMIDao) : ViewModel() {
         }
     }
 
-    // --- NEW: WorkManager Scheduler ---
+    /** Gemini - início
+     * Prompt: Update the MainViewModel to handle the background task scheduling.
+     * Requirements:
+     * 1. Create a function `scheduleWeeklyReminder` that interacts with Android's WorkManager.
+     * 2. Build a `PeriodicWorkRequest` for the `BMIReminderWorker` with a 7-day interval.
+     * 3. Use `ExistingPeriodicWorkPolicy.UPDATE` (or KEEP) to ensure that clicking the button multiple times does not create duplicate background tasks.
+     * 4. Keep the context handling simple within the ViewModel scope for this implementation.
+     */
+    // --- WorkManager Scheduler ---
     fun scheduleWeeklyReminder(context: Context) {
         val workRequest = PeriodicWorkRequestBuilder<BMIReminderWorker>(7, TimeUnit.DAYS) //(15, TimeUnit.MINUTES)
             .addTag("bmi_reminder")
@@ -140,7 +148,7 @@ class MainViewModel(private val dao: BMIDao) : ViewModel() {
             workRequest
         )
     }
-
+    /** Gemini - final **/
     companion object {
         fun provideFactory(dao: BMIDao): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

@@ -103,6 +103,15 @@ fun HistoryScreen(
 }
 
 // --- UPDATED CHART LOGIC ---
+/** Gemini - início
+ * Prompt: Implement a Visual Analytics feature using Native Jetpack Compose Canvas (no external libraries like MPAndroidChart).
+ * Requirements:
+ * 1. Draw a Line Chart showing BMI evolution over time (X=Date, Y=BMI).
+ * 2. Use visual data points (circles) connected by lines.
+ * 3. Apply dynamic colors to points based on BMI category (Blue < 18.5, Green < 25, Orange < 30, Red >= 30).
+ * 4. Draw horizontal threshold lines at Y=18.5 and Y=30.0 for visual reference.
+ * 5. Keep the implementation simple, performant, and contained within a reusable Composable.
+ */
 @Composable
 fun BmiChart(records: List<BMIRecord>) {
     // 1. Sort Data: Oldest -> Newest
@@ -242,7 +251,7 @@ fun BmiChart(records: List<BMIRecord>) {
         }
     }
 }
-
+/** Gemini - final */
 @Composable
 fun LegendItem(color: Color, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
