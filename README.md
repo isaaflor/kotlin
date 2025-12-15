@@ -27,9 +27,9 @@ The app emphasizes a clean, Material 3 user experience and ensures all data is p
 
 ## 📸 Screenshots
 
-|               Home Screen               | History & Chart | Details |
-|:---------------------------------------:|:---------------:|:-------:|
-| <img src="images/home.png" width="250"> | <img src="images/history.png" width="250"> | <img src="images/details.png" width="250"> |
+|               Home Screen                |               History & Chart               |                   Details                   |
+|:----------------------------------------:|:-------------------------------------------:|:-------------------------------------------:|
+| <img src="images/home.jpeg" width="250"> | <img src="images/history.jpeg" width="250"> | <img src="images/details.jpeg" width="250"> |
 ---
 
 ## 🛠️ Technical Architecture & Decisions
